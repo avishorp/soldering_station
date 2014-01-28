@@ -15,14 +15,14 @@
   void Average::init(int initValue)
   {
     uint8_t k;
-    for(k = 0; k < 16; k++)
+    for(k = 0; k < 8; k++)
       m_data[k] = initValue;
   }
   
   void Average::putValue(int value)
   {
     m_data[m_ptr] = value;
-    m_ptr = (m_ptr + 1) & 0x0f;
+    m_ptr = (m_ptr + 1) & 0x07;
   }
   
   int Average::getAverage()
@@ -30,10 +30,10 @@
     uint8_t k;
     int sum;
     
-    for(k=0; k < 16; k++)
+    for(k=0; k < 8; k++)
       sum += m_data[k];
 
-   return (sum >> 4);
+   return (sum >> 3);
   }
   
   
