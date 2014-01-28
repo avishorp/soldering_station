@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <TM1637Display.h>
+#include "OnOffController.h"
 #include "Average.h"
 
 // Pin Allocation
@@ -16,11 +17,20 @@
 #define KNOB_1         9      // Setting knob input 1
 #define KNOB_2         10      // Setting knob input 2
 
+class IronOnOffController: public OnOffController
+{
+public:
+  IronOnOffController(): OnOffController(0, 700) {}
+};
+
 Average readingAvg;
 TM1637Display display(DISP_CLK, DISP_DIO);
+OnOffController controller(0, 1000);
 
 void setup()
 {
+  Serial.begin(9600);
+
   // Set up the I/O pin direction
   pinMode(HEATER, OUTPUT);
   pinMode(BTN_ONOFF, INPUT_PULLUP);
@@ -29,22 +39,44 @@ void setup()
   pinMode(BTN_PRST3, INPUT_PULLUP);  
   pinMode(KNOB_1, INPUT_PULLUP);
   pinMode(KNOB_2, INPUT_PULLUP);
+  pinMode(13, OUTPUT);
   
   readingAvg.init(analogRead(A0));
   
   display.setBrightness(15);
   
+  controller.setSetpoint(700);
+  
+  // Fill the average window up
+  int k;
+  for(k=0; k < 10; k++) {
+    int val = analogRead(A0);
+    readingAvg.putValue(val);
+    delay(50);
+  }
+  
+  //
+  controller.updateSamplingValue(readingAvg.getAverage());
+  controller.setOnOffState(true);
+    
 }
 
 void loop()
 {
-  int val = analogRead(A0);
-  readingAvg.putValue(val);
+
+    int val = analogRead(A0);
+    readingAvg.putValue(val);
   
-  display.showNumberDec(readingAvg.getAverage());
+    int temp = readingAvg.getAverage();
+    display.showNumberDec(temp);
+    controller.updateSamplingValue(temp);
+
+    Serial.print(controllerStateToStr(controller.getState()));  
+    Serial.print(" ");
+    Serial.println(temp);
+
   
-  delay(200);
-  
+    delay(100);
   
 }
 
