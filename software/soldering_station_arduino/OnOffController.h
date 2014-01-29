@@ -13,6 +13,12 @@ typedef enum {
 
 const char* controllerStateToStr(ControllerState st);
 
+//
+//  --------------|----*------|--------*----|---- .... ---|
+//                          setpoint
+//                |---margin--|---margin----|
+//                     * = switch on point = setpoint - margin + undershoot
+//                                     * = switch off point = setpoint + margin - overshoot
 class OnOffController {
 public:
   // Constructs an OnOffController object,
@@ -47,14 +53,20 @@ protected:
   // whether to turn the heater on or off
   void makeControlDecision();
   
+  // Wrapper to the heaterControl method
+  void internalHeaterControl(bool on);
+  
   unsigned int m_lastMeasure;
+  unsigned int m_prevMeasure;
   unsigned int m_setpoint;
   unsigned int m_stableLow;
   unsigned int m_stableHigh;
-  unsigned int m_tripPoint;
   unsigned int m_maxValidValue;  
   ControllerState m_currentState;
   bool m_heaterState;
+  unsigned int m_overshoot;
+  unsigned int m_undershoot;
+  unsigned int m_tempAtSwitch;
 };
 
 #endif // _ONOFFCONTROLLER_H_

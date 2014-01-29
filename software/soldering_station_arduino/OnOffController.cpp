@@ -41,10 +41,13 @@ OnOffController::OnOffController(unsigned int lowMargin, unsigned int maxValidVa
   m_maxValidValue = maxValidValue;
   m_currentState = OOCTL_OFF;
   m_heaterState = false;
+  m_overshoot = 0;
+  m_undershoot = 0;
+  m_tempAtSwitch = 0;
   
   // Turn the heater off
   
-  heaterControl(false);
+  internalHeaterControl(false);
 }
   
 void OnOffController::setSetpoint(int value)
@@ -54,15 +57,33 @@ void OnOffController::setSetpoint(int value)
     return;
     
   m_setpoint = value;
-  m_stableLow = value - 10;
-  m_stableHigh = value + 40;
-  m_tripPoint = value - 20;
+  int margin = 20;
+  m_stableLow = value - margin;
+  m_stableHigh = value + margin;
   makeControlDecision();
 }
   
 void OnOffController::updateSamplingValue(int value)
 {
+  m_prevMeasure = m_lastMeasure;
   m_lastMeasure = value;
+  
+  // Calculate overshoot/undershoot
+  if (m_heaterState == true && (m_lastMeasure < m_prevMeasure) && (m_lastMeasure < m_tempAtSwitch)) {
+    // When the heater is on, but the temperature is still
+	// lowering, wer'e in undershoot
+	m_undershoot = m_tempAtSwitch - m_lastMeasure;
+Serial.print("undershoot ");
+Serial.println(m_undershoot);
+  }
+  if (m_heaterState == false && (m_lastMeasure > m_prevMeasure) && (m_lastMeasure > m_tempAtSwitch)) {
+    // When the heater is off, but the temperature is still
+	// rising, wer'e in overshoot
+	m_overshoot = m_lastMeasure - m_tempAtSwitch;
+Serial.print("overshoot ");
+Serial.println(m_overshoot);
+  }
+  
   makeControlDecision();
 }
   
@@ -80,12 +101,15 @@ void OnOffController::setOnOffState(bool on)
   if (on) {
     // Turn controller on
 	m_currentState = OOCTL_HEATING;
+        m_overshoot = 0;
+        m_undershoot = 0;
+      
 	makeControlDecision();
   }
   else {
     // Turn controller off
 	m_currentState = OOCTL_OFF;
-	heaterControl(false);
+	internalHeaterControl(false);
   }
 }
 
@@ -94,29 +118,25 @@ void OnOffController::makeControlDecision()
 
   if (m_lastMeasure > m_maxValidValue) {
 	// Emergency stop - turn off the heater and the controller
-	heaterControl(false);
+	internalHeaterControl(false);
 	m_currentState = OOCTL_OFF;
 	return;
   }
   else if (m_currentState != OOCTL_OFF) {
-	if (m_lastMeasure > m_stableHigh) {
-	  // Overtemperature
-	  if (m_currentState != OOCTL_OVER) {
-		heaterControl(false);
-		m_currentState = OOCTL_OVER;
-	  }
-    }
-    else if (m_lastMeasure < m_tripPoint) {
-
-	  // Temperature too low (may be stable or not)
-	  heaterControl(true);
+    // Decide whether to switch the heater on or off
+	if (m_lastMeasure > (m_stableHigh - m_overshoot)) 
+		internalHeaterControl(false);
+    else if (m_lastMeasure < (m_stableLow + m_undershoot)) 
+		internalHeaterControl(true);
+		
+	// Determine the state
+	if (m_lastMeasure < m_stableLow)
+	  m_currentState = OOCTL_HEATING;
+    else if (m_lastMeasure < m_stableHigh)
+	  m_currentState = OOCTL_STABLE;
+	else
+      m_currentState = OOCTL_HEATING;
 	
-	  // Check if we are in the stable range
-	  if (m_lastMeasure >= m_stableLow)
-		m_currentState = OOCTL_STABLE;
-	  else
-		m_currentState = OOCTL_HEATING;
-	}
   }
 }
 
@@ -131,6 +151,20 @@ void OnOffController::heaterControl(bool on)
       digitalWrite(6, LOW);
     }
 }
+
+void OnOffController::internalHeaterControl(bool on)
+{
+	if (on != m_heaterState) {
+		// This is a switch
+		m_tempAtSwitch = m_lastMeasure;
+	}
+	
+	m_heaterState = on;
+	
+	// Call the actual working function
+	heaterControl(on);
+}
+
 
 
 
