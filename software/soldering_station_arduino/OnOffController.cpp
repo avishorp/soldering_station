@@ -10,9 +10,10 @@
 
 const char* _controllerStateStr[] = {
   "OFF",
-  "HEATING",
+  "UNDER",
   "STABLE",
-  "OVER"
+  "OVER",
+  "FAULT"
 };
 
 const char* controllerStateToStr(ControllerState st)
@@ -21,14 +22,17 @@ const char* controllerStateToStr(ControllerState st)
   case OOCTL_OFF:
     return _controllerStateStr[0];
 
-  case OOCTL_HEATING:
+  case OOCTL_UNDER:
     return _controllerStateStr[1];
 
   case OOCTL_STABLE:
     return _controllerStateStr[2];
 
   case OOCTL_OVER:
-    return _controllerStateStr[3];   
+    return _controllerStateStr[3];
+
+  case OOCTL_FAULT:
+    return _controllerStateStr[4];
   }
   
   return "";
@@ -96,7 +100,7 @@ void OnOffController::setOnOffState(bool on)
 {
   if (on) {
     // Turn controller on
-	m_currentState = OOCTL_HEATING;
+	m_currentState = OOCTL_UNDER;
         m_overshoot = 0;
         m_undershoot = 0;
       
@@ -127,11 +131,11 @@ void OnOffController::makeControlDecision()
 		
 	// Determine the state
 	if (m_lastMeasure < m_stableLow)
-	  m_currentState = OOCTL_HEATING;
+	  m_currentState = OOCTL_UNDER;
     else if (m_lastMeasure < m_stableHigh)
 	  m_currentState = OOCTL_STABLE;
 	else
-      m_currentState = OOCTL_HEATING;
+      m_currentState = OOCTL_UNDER;
 	
   }
 }

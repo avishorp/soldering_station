@@ -5,10 +5,11 @@
 #include <inttypes.h>
 
 typedef enum {
-  OOCTL_OFF,             // Controller is off, no heating
-  OOCTL_HEATING,   // Heating up
-  OOCTL_STABLE,     // Stable temperature reached
-  OOCTL_OVER           // Overtemperature
+  OOCTL_OFF,       // Controller is off, no heating
+  OOCTL_UNDER,     // Heating up
+  OOCTL_STABLE,    // Stable temperature reached
+  OOCTL_OVER,      // Overtemperature
+  OOCTL_FAULT      // Fault
 } ControllerState;
 
 const char* controllerStateToStr(ControllerState st);
