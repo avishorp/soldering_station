@@ -73,15 +73,11 @@ void OnOffController::updateSamplingValue(int value)
     // When the heater is on, but the temperature is still
 	// lowering, wer'e in undershoot
 	m_undershoot = m_tempAtSwitch - m_lastMeasure;
-Serial.print("undershoot ");
-Serial.println(m_undershoot);
   }
   if (m_heaterState == false && (m_lastMeasure > m_prevMeasure) && (m_lastMeasure > m_tempAtSwitch)) {
     // When the heater is off, but the temperature is still
 	// rising, wer'e in overshoot
 	m_overshoot = m_lastMeasure - m_tempAtSwitch;
-Serial.print("overshoot ");
-Serial.println(m_overshoot);
   }
   
   makeControlDecision();
