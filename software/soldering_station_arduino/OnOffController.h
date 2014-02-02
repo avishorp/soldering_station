@@ -25,8 +25,12 @@ public:
   // Constructs an OnOffController object,
   // initalizes it and puts it in OFF state
   OnOffController(
-    unsigned int lowMargin,
-    unsigned int maxValidValue
+    unsigned int margin,        // The margin, around setpoint, considered "stable"
+    unsigned int maxValidValue, // Maximal valid temperature. If the reading is above
+	                            // this number, the controller will turn off immediately
+	unsigned int timeout        // The maximal time, in milliseconds, in which the heater must
+	                            // react to on/off command. If this time elapses, fault
+								// condition is entered
     );
   
   // Set the desired temperature setpoint

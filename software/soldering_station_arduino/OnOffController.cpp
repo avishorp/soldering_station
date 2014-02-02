@@ -39,7 +39,7 @@ const char* controllerStateToStr(ControllerState st)
 }
 
 
-OnOffController::OnOffController(unsigned int lowMargin, unsigned int maxValidValue)
+OnOffController::OnOffController(unsigned int lowMargin, unsigned int maxValidValue, unsigned int timeout)
 {
   // Initialize the controller state
   m_maxValidValue = maxValidValue;
@@ -119,10 +119,10 @@ void OnOffController::makeControlDecision()
   if (m_lastMeasure > m_maxValidValue) {
 	// Emergency stop - turn off the heater and the controller
 	internalHeaterControl(false);
-	m_currentState = OOCTL_OFF;
+	m_currentState = OOCTL_FAULT;
 	return;
   }
-  else if (m_currentState != OOCTL_OFF) {
+  else if ((m_currentState != OOCTL_OFF) && (m_currentState != OOCTL_FAULT)) {
     // Decide whether to switch the heater on or off
 	if (m_lastMeasure > (m_stableHigh - m_overshoot)) 
 		internalHeaterControl(false);
