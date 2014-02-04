@@ -20,6 +20,9 @@ public:
   // Estimate the Y value for a given X value
   int estimateY(int x);
   
+  // Estimate the X value for a given Y value
+  int estimateX(int y);
+  
   // Calculate the parameters a and b based on
   // a set of observation (linear regression)
   void linest(int n, int x[], int y[]);
