@@ -31,12 +31,24 @@
 #define UPDATE_INTERVAL     100  // Controller update interval (in mS)                              
 
 //
-// IronOnOffController
+// IronController
 //
-class IronOnOffController: public OnOffController
+class IronController: public OnOffController
 {
 public:
-  IronOnOffController(): OnOffController(0, 700, 0) {}
+  IronController(): OnOffController(0, 700, 0) {}
+  
+  virtual void heaterControl(bool on)
+  {
+    if (on) {
+      digitalWrite(13, HIGH);
+      digitalWrite(6, HIGH);
+    }
+    else {
+      digitalWrite(13, LOW);
+      digitalWrite(6, LOW);
+    }
+  }
 };
 
 //
@@ -96,7 +108,7 @@ typedef enum {
 SystemState systemState;
 Average readingAvg;
 TM1637Display display(DISP_CLK, DISP_DIO);
-OnOffController controller(0, 1000, 0);
+IronController controller;
 Bounce encoderPin1;
 Bounce encoderPin2;
 Bounce buttonOnOff;

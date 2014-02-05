@@ -14,8 +14,21 @@ typedef enum {
 
 const char* controllerStateToStr(ControllerState st);
 
+// A simple implementation of an on/off temperature controller (aka Thermostat)
 //
-//  --------------|----*------|--------*----|---- .... ---|
+// An object of this class turns on and off a heating element trying to keep
+// the measured temperature within a given margin from a setpoint. The heater
+// is controlled via the heaterControl() method, which must be implemented to
+// to drive the actual heating element.
+// The algorithm detects three fault cases:
+//
+// FAULT_OVERTEMP - Overtemperature (beyond the given safety limit)
+// FAULT_NOT_HEATING - Not heating as expected, might be caused by a faulty
+//                     heating element or power system
+// FAULT_NOT_COOLING - Not cooling as expected, suggests that the heating
+//                     element heats uncontrollably. MIGHT BE DANGEROUS!
+//
+//  --------------|----*------|--------*----|---- .... ---|---> Temperature
 //                          setpoint
 //                |---margin--|---margin----|
 //                     * = switch on point = setpoint - margin + undershoot
@@ -51,7 +64,7 @@ public:
   // Heater control callback, The function will be called when
   // the heater should be turned on or off. It must be overridden by
   // the user to imlement the physical operation.
-  void heaterControl(bool on);
+  virtual void heaterControl(bool on) = 0;
   
 protected: 
   // Calculate the current state and decide

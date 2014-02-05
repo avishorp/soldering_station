@@ -140,17 +140,6 @@ void OnOffController::makeControlDecision()
   }
 }
 
-void OnOffController::heaterControl(bool on)
-{
-    if (on) {
-      digitalWrite(13, HIGH);
-      digitalWrite(6, HIGH);
-    }
-    else {
-      digitalWrite(13, LOW);
-      digitalWrite(6, LOW);
-    }
-}
 
 void OnOffController::internalHeaterControl(bool on)
 {
