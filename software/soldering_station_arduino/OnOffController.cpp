@@ -48,6 +48,9 @@ OnOffController::OnOffController(unsigned int lowMargin, unsigned int maxValidVa
   m_overshoot = 0;
   m_undershoot = 0;
   m_tempAtSwitch = 0;
+  m_enableXshoot = false;
+  m_xshootTimeout = timeout;
+  m_faultCode = FAULT_NONE;
   
   // Turn the heater off
   
@@ -64,6 +67,11 @@ void OnOffController::setSetpoint(int value)
   int margin = 20;
   m_stableLow = value - margin;
   m_stableHigh = value + margin;
+  
+  // Temporarily disable over/undershoot measurment to prevent
+  // false results due to the setpoint change
+  m_enableXshoot = false;
+  
   makeControlDecision();
 }
   
@@ -72,16 +80,27 @@ void OnOffController::updateSamplingValue(int value)
   m_prevMeasure = m_lastMeasure;
   m_lastMeasure = value;
   
+  unsigned int now = millis();
+  
   // Calculate overshoot/undershoot
-  if (m_heaterState == true && (m_lastMeasure < m_prevMeasure) && (m_lastMeasure < m_tempAtSwitch)) {
+  if (m_enableXshoot && m_heaterState == true && (m_lastMeasure < m_prevMeasure) && (m_lastMeasure < m_tempAtSwitch)) {
     // When the heater is on, but the temperature is still
-	// lowering, wer'e in undershoot
+	// decliningg, wer'e in undershoot
 	m_undershoot = m_tempAtSwitch - m_lastMeasure;
+
+    // Check that wer'e not in undeshoot too much time
+    if ((now - m_xshootStartTime) > m_xshootTimeout)
+      switchToFault(FAULT_NOT_HEATING);
   }
-  if (m_heaterState == false && (m_lastMeasure > m_prevMeasure) && (m_lastMeasure > m_tempAtSwitch)) {
+  if (m_enable_Xshoot && m_heaterState == false && (m_lastMeasure > m_prevMeasure) && (m_lastMeasure > m_tempAtSwitch)) {
     // When the heater is off, but the temperature is still
 	// rising, wer'e in overshoot
 	m_overshoot = m_lastMeasure - m_tempAtSwitch;
+
+      // Check that wer'e not in undeshoot too much time
+      if ((now - m_xshootStartTime) > m_xshootTimeout)
+        switchToFault(FAULT_NOT_COOLING);
+
   }
   
   makeControlDecision();
@@ -98,7 +117,7 @@ ControllerState OnOffController::getState()
   
 void OnOffController::setOnOffState(bool on)
 {
-  if (on) {
+  if (on && (m_currentState != OOCTL_FAULT)) {
     // Turn controller on
 	m_currentState = OOCTL_UNDER;
         m_overshoot = 0;
@@ -109,6 +128,7 @@ void OnOffController::setOnOffState(bool on)
   else {
     // Turn controller off
 	m_currentState = OOCTL_OFF;
+        m_faultCode = FAULT_NONE;
 	internalHeaterControl(false);
   }
 }
@@ -118,9 +138,8 @@ void OnOffController::makeControlDecision()
 
   if (m_lastMeasure > m_maxValidValue) {
 	// Emergency stop - turn off the heater and the controller
-	internalHeaterControl(false);
-	m_currentState = OOCTL_FAULT;
-	return;
+        switchToFault(FAULT_OVERTEMP);
+        return;
   }
   else if ((m_currentState != OOCTL_OFF) && (m_currentState != OOCTL_FAULT)) {
     // Decide whether to switch the heater on or off
@@ -146,6 +165,8 @@ void OnOffController::internalHeaterControl(bool on)
 	if (on != m_heaterState) {
 		// This is a switch
 		m_tempAtSwitch = m_lastMeasure;
+                m_enableXshoot = true;
+                m_xshootStartTime = millis();
 	}
 	
 	m_heaterState = on;
@@ -153,6 +174,21 @@ void OnOffController::internalHeaterControl(bool on)
 	// Call the actual working function
 	heaterControl(on);
 }
+
+void OnOffController::switchToFault(int faultCode)
+{
+  // First of all, turn heater off (directly, without
+  // going through the over/undershoot stuff)
+  heaterControl(false);
+  m_heaterState = false;
+  
+  // Set the current state to FAULT
+  m_currentState = OOCTL_FAULT;
+  
+  // Set the fault code
+  m_faultCode = faultCode;
+}
+
 
 
 

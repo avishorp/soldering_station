@@ -14,6 +14,12 @@ typedef enum {
 
 const char* controllerStateToStr(ControllerState st);
 
+// Controller Fault Conditions
+#define FAULT_NONE         0
+#define FAULT_NOT_HEATING  1
+#define FAULT_NOT_COOLING  2
+#define FAULT_OVERTEMP     4
+
 // A simple implementation of an on/off temperature controller (aka Thermostat)
 //
 // An object of this class turns on and off a heating element trying to keep
@@ -61,15 +67,25 @@ public:
   // Turn the power on (controller workign) or off (heater always off)
   void setOnOffState(bool on);
   
+  // Get the current fault code
+  int getFaultCode() { return m_faultCode; }
+  
   // Heater control callback, The function will be called when
   // the heater should be turned on or off. It must be overridden by
   // the user to imlement the physical operation.
   virtual void heaterControl(bool on) = 0;
   
+  // Fault callback - will be called by the controller in case
+  // of a fault condition
+  virtual void fault(int faultCode) {}
+  
 protected: 
   // Calculate the current state and decide
   // whether to turn the heater on or off
   void makeControlDecision();
+  
+  // Switch the controller into fault state
+  void switchToFault(int faultCode);
   
   // Wrapper to the heaterControl method
   void internalHeaterControl(bool on);
@@ -85,6 +101,10 @@ protected:
   unsigned int m_overshoot;
   unsigned int m_undershoot;
   unsigned int m_tempAtSwitch;
+  bool m_enableXshoot;
+  unsigned int m_xshootStartTime;
+  unsigned int m_xshootTimeout;
+  int m_faultCode;
 };
 
 #endif // _ONOFFCONTROLLER_H_
