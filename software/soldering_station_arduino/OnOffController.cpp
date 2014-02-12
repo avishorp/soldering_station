@@ -92,7 +92,7 @@ void OnOffController::updateSamplingValue(int value)
     if ((now - m_xshootStartTime) > m_xshootTimeout)
       switchToFault(FAULT_NOT_HEATING);
   }
-  if (m_enable_Xshoot && m_heaterState == false && (m_lastMeasure > m_prevMeasure) && (m_lastMeasure > m_tempAtSwitch)) {
+  if (m_enableXshoot && m_heaterState == false && (m_lastMeasure > m_prevMeasure) && (m_lastMeasure > m_tempAtSwitch)) {
     // When the heater is off, but the temperature is still
 	// rising, wer'e in overshoot
 	m_overshoot = m_lastMeasure - m_tempAtSwitch;
