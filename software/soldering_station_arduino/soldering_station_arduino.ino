@@ -102,6 +102,19 @@ typedef enum {
   SYS_CAL
 } SystemState;
 
+typedef struct {
+  int temperature;
+  bool temperatureUpdate;
+  bool btnOnOffChanged;
+  bool btnOnOffValue;
+  bool btn1Changed;
+  bool btn1Value;
+  bool btn2Changed;
+  bool btn2Value;
+  bool btn3Changed;
+  bool btn3Value;
+} UpdateReport;
+
 //
 // Global Variables
 //
@@ -118,8 +131,8 @@ Bounce buttonPreset3;
 TemperatureSetting temperatureSetpoint;
 LinearEstimator analogToTempr;
 unsigned int updateTime;
-int lastTemperature;
 int subState;
+UpdateReport updateReport;
 
 void setup()
 {
@@ -160,7 +173,7 @@ void setup()
   encoderPin2.attach(KNOB_2);
   encoderPin2.interval(5);
   buttonOnOff.attach(BTN_ONOFF);
-  buttonOnOff.interval(5);
+  buttonOnOff.interval(25);
   buttonPreset1.attach(BTN_PRST1);
   buttonPreset1.interval(5);
   buttonPreset2.attach(BTN_PRST2);
@@ -168,14 +181,9 @@ void setup()
   buttonPreset3.attach(BTN_PRST3);
   buttonPreset3.interval(5);  
   
-  delay(2000);
   int xx[] = {550, 650, 750, 850};
   int yy[] = {167, 232, 295, 360};
   analogToTempr.linest(4, xx, yy);
-  Serial.print("a=");
-  Serial.print(analogToTempr.getA());
-  Serial.print(" b=");
-  Serial.println(analogToTempr.getB());  
   
   // Initial system state
   systemState = SYS_OFF;
@@ -199,20 +207,17 @@ void switchToOn()
   display.showNumberDec(temperatureSetpoint.get());
 }
 
-void loopOff(int temperature, bool update)
+void loopOff()
 {
-  if (buttonOnOff.update()) {
-    if (buttonOnOff.read() == 0) {
-      // On/Off button pressed, change to ON state
-      systemState = SYS_ON;
-      controller.setOnOffState(true);
-    }
+  if (updateReport.btnOnOffChanged && updateReport.btnOnOffValue) {
+    switchToOn();
+    return;
   }
 
-  if (update && (subState == 0)) {  
+  if (updateReport.temperatureUpdate && (subState == 0)) {  
     // Check if the iron handle is too hot, and display "HOT" if
     // so. Otherwise display nothing
-    if ((temperature > TEMPERATURE_HOT) && (temperature < TEMPERATURE_FAULT))
+    if ((updateReport.temperature > TEMPERATURE_HOT) && (updateReport.temperature < TEMPERATURE_FAULT))
       display.setSegments(DISP_HOT);
     else {
       display.setSegments(DISP_BLANK);
@@ -222,7 +227,7 @@ void loopOff(int temperature, bool update)
   
 }
 
-void loopOn(int temperature, bool update)
+void loopOn()
 {
   // Update the encoder pin debouncers
   if (encoderPin1.update() ||  encoderPin2.update()) {
@@ -235,20 +240,22 @@ void loopOn(int temperature, bool update)
   }
   
   // Update and the the On/Off button state
-  if (buttonOnOff.update()) {
-    if (buttonOnOff.read() == 0) {
+  if (updateReport.btnOnOffChanged && updateReport.btnOnOffValue) {
       // On/Off button pressed, change to OFF state
       switchToOff();
       return;
-    }
   }  
  
+}
+
+void loopCal(int temperature, bool update)
+{
 }
 
 void loop()
 {
   // Regular task - update the temperature reading every UPDATE_INTERVAL
-  bool update = false;
+  updateReport.temperatureUpdate = true;
   unsigned int now = millis();
   if (now > updateTime) {
     updateTime += UPDATE_INTERVAL;
@@ -257,19 +264,35 @@ void loop()
     readingAvg.putValue(val);
     int meas = readingAvg.getAverage();
     int temperature = analogToTempr.estimateY(meas);
-    lastTemperature = temperature;
-    Serial.println(temperature);
+    updateReport.temperature = temperature;
+    updateReport.temperatureUpdate = true;
     controller.updateSamplingValue(meas);
-    update = true;   
   } 
+  
+  // Update the various debouncers
+  updateReport.btnOnOffChanged = buttonOnOff.update();
+  updateReport.btnOnOffValue = !buttonOnOff.read();
+  updateReport.btn1Changed = buttonPreset1.update();
+  updateReport.btn1Value = !buttonPreset1.read();
+  updateReport.btn2Changed = buttonPreset2.update();  
+  updateReport.btn2Value = !buttonPreset1.read();
+  updateReport.btn3Changed = buttonPreset3.update();  
+  updateReport.btn3Value = !buttonPreset1.read();
+  
+  if (updateReport.btnOnOffChanged) {
+    if (updateReport.btnOnOffValue)
+      Serial.println("pushed");
+    else
+      Serial.println("released\n");
+  }
   
   switch(systemState) {
   case SYS_ON:
-    loopOn(lastTemperature, update);
+    loopOn();
     break;
     
   case SYS_OFF:
-    loopOff(lastTemperature, update);
+    loopOff();
     break;
   };
 }
