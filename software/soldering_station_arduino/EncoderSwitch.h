@@ -3,6 +3,8 @@
 #define __ENCODERSWITCH_H__
 
 #include <inttypes.h>
+#include <Bounce2.h>
+
 
 typedef enum EncoderSwitchStates {
   ENCSW_STATE_00,
@@ -13,25 +15,24 @@ typedef enum EncoderSwitchStates {
 };
 
 // Rotary Encoder Switch decoding class
-// An object of this class accepts two inputs - inp1 and inp2, which are
-// the two pins of the encoder. The object should be updated with the
-// update() method whenever a cheange in those pin occur (it may be called
-// repeatadly with the same value even if there is no change). When a rotation
-// step is detected, one of the methods eventUp() or eventDown() is called.
-// These are abstract functions which must be implemented by the inheriting object
+// An object of this class accepts two digital input pins - pin1 and pin2,
+// which are the two pins of the encoder. The update() method of the object
+// must be called periodically. This method returns an indication corresponding
+// encoder rotation direction (if any)
 class EncoderSwitch
 {
 public:
-  EncoderSwitch();
-  
-  void update(int inp1, int inp2);
-  
-  virtual void eventUp() = 0;
-  
-  virtual void eventDown() = 0;
+  EncoderSwitch(int pin1, int pin2);
 
+  // Read the encoder pins and decode its rotation direction. Then
+  // method returns +1 or -1 when a rotation step was detected 
+  // (corresponding to the direction) and 0 if no motion was detected  
+  int update();
+  
 protected:
   EncoderSwitchStates state;
+  Bounce m_pin1;
+  Bounce m_pin2;
 };
 
 #endif

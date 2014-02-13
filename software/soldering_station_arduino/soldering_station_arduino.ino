@@ -54,6 +54,7 @@ public:
 //
 // TemperatureSetting
 //
+/*
 class TemperatureSetting: public EncoderSwitch
 {
 public:
@@ -84,6 +85,7 @@ protected:
   unsigned int temperature;
   
 };
+*/
 
 //
 // Constants
@@ -113,6 +115,7 @@ typedef struct {
   bool btn2Value;
   bool btn3Changed;
   bool btn3Value;
+  int  knobValue;
 } UpdateReport;
 
 //
@@ -122,17 +125,16 @@ SystemState systemState;
 Average readingAvg;
 TM1637Display display(DISP_CLK, DISP_DIO);
 IronController controller;
-Bounce encoderPin1;
-Bounce encoderPin2;
 Bounce buttonOnOff;
 Bounce buttonPreset1;
 Bounce buttonPreset2;
 Bounce buttonPreset3;
-TemperatureSetting temperatureSetpoint;
+EncoderSwitch knobEncoder(KNOB_1, KNOB_2);
 LinearEstimator analogToTempr;
 unsigned int updateTime;
 int subState;
 UpdateReport updateReport;
+int temperatureSetpoint;
 
 void setup()
 {
@@ -168,10 +170,6 @@ void setup()
   controller.updateSamplingValue(readingAvg.getAverage());
   
   // Attach the debouncer objects to the encoder and button pins
-  encoderPin1.attach(KNOB_1);
-  encoderPin1.interval(5);
-  encoderPin2.attach(KNOB_2);
-  encoderPin2.interval(5);
   buttonOnOff.attach(BTN_ONOFF);
   buttonOnOff.interval(25);
   buttonPreset1.attach(BTN_PRST1);
@@ -184,6 +182,8 @@ void setup()
   int xx[] = {550, 650, 750, 850};
   int yy[] = {167, 232, 295, 360};
   analogToTempr.linest(4, xx, yy);
+  
+  temperatureSetpoint = 250; // TODO: Read from EEPROM
   
   // Initial system state
   systemState = SYS_OFF;
@@ -204,7 +204,7 @@ void switchToOn()
   systemState = SYS_ON;
   controller.setOnOffState(true);
   subState = 0;
-  display.showNumberDec(temperatureSetpoint.get());
+  display.showNumberDec(temperatureSetpoint);
 }
 
 void loopOff()
@@ -229,22 +229,25 @@ void loopOff()
 
 void loopOn()
 {
-  // Update the encoder pin debouncers
-  if (encoderPin1.update() ||  encoderPin2.update()) {
-    uint8_t pin1 = (~encoderPin1.read()) & 0x01;
-    uint8_t pin2 = (~encoderPin2.read()) & 0x01;    
-    //digitalWrite(11, pin1);
-    //digitalWrite(12, pin2);
-    temperatureSetpoint.update(pin1, pin2);
-    display.showNumberDec(temperatureSetpoint.get());
-  }
-  
   // Update and the the On/Off button state
   if (updateReport.btnOnOffChanged && updateReport.btnOnOffValue) {
       // On/Off button pressed, change to OFF state
       switchToOff();
       return;
   }  
+  
+  // Update the temperature
+  if (updateReport.knobValue != 0) {
+    if ((updateReport.knobValue == 1) && (temperatureSetpoint < TEMPERATURE_MAX))
+      temperatureSetpoint += TEMPERATURE_STEP;
+    else if ((updateReport.knobValue == -1) && (temperatureSetpoint > TEMPERATURE_MIN))
+      temperatureSetpoint -= TEMPERATURE_STEP;
+      
+    display.showNumberDec(temperatureSetpoint);
+    controller.setSetpoint(analogToTempr.estimateX(temperatureSetpoint));
+  }
+      
+        
  
 }
 
@@ -278,14 +281,12 @@ void loop()
   updateReport.btn2Value = !buttonPreset1.read();
   updateReport.btn3Changed = buttonPreset3.update();  
   updateReport.btn3Value = !buttonPreset1.read();
+  updateReport.knobValue = knobEncoder.update();
   
-  if (updateReport.btnOnOffChanged) {
-    if (updateReport.btnOnOffValue)
-      Serial.println("pushed");
-    else
-      Serial.println("released\n");
-  }
+  if (updateReport.knobValue != 0)
+    Serial.println(updateReport.knobValue);
   
+   
   switch(systemState) {
   case SYS_ON:
     loopOn();
