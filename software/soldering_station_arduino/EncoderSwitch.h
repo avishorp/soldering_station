@@ -22,7 +22,7 @@ typedef enum EncoderSwitchStates {
 class EncoderSwitch
 {
 public:
-  EncoderSwitch(int pin1, int pin2);
+  EncoderSwitch(int pin1, int pin2, bool invert);
 
   // Read the encoder pins and decode its rotation direction. Then
   // method returns +1 or -1 when a rotation step was detected 
@@ -33,6 +33,7 @@ protected:
   EncoderSwitchStates state;
   Bounce m_pin1;
   Bounce m_pin2;
+  uint8_t m_mask;
 };
 
 #endif

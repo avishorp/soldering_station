@@ -1,6 +1,6 @@
 #include "EncoderSwitch.h"
 
-EncoderSwitch::EncoderSwitch(int pin1, int pin2)
+EncoderSwitch::EncoderSwitch(int pin1, int pin2, bool invert)
 {
   // Attach the input pins to the debouncer
   m_pin1.attach(pin1);
@@ -10,6 +10,9 @@ EncoderSwitch::EncoderSwitch(int pin1, int pin2)
 
   // Initialize the state
   state = ENCSW_STATE_UNKNOWN;
+  
+  // Pin inversion
+  m_mask = invert? 0xff : 0x00;
 }
 
 int EncoderSwitch::update()
@@ -20,7 +23,7 @@ int EncoderSwitch::update()
   int ret = 0;
   
   if (chg) {
-    uint8_t inps = ((m_pin1.read() << 1) + m_pin2.read()) & 0x03;
+    uint8_t inps = (((m_pin1.read() << 1) + m_pin2.read() ) ^ m_mask) & 0x03;
     switch(state) {
     case ENCSW_STATE_UNKNOWN:
     case ENCSW_STATE_11:  
