@@ -74,6 +74,10 @@ public:
   // the user to imlement the physical operation.
   virtual void heaterControl(bool on) = 0;
   
+  // Stability callback - called when the controller goes in/out
+  // the stable state
+  virtual void stable(bool stab) {}
+  
   // Fault callback - will be called by the controller in case
   // of a fault condition
   virtual void fault(int faultCode) {}

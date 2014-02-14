@@ -15,8 +15,8 @@
 #define BTN_PRST1  A1   // Preset 1 Button
 #define BTN_PRST2  A2   // Preset 2 Button
 #define BTN_PRST3  A3   // Preset 3 Button
-#define LED_HEAT   13  // Heater on indicator
-#define LED_READY 8   // Ready LED
+#define LED_HEAT   11  // Heater on indicator
+#define LED_READY 12   // Ready LED
 #define KNOB_1         9      // Setting knob input 1
 #define KNOB_2         10      // Setting knob input 2
 
@@ -41,51 +41,23 @@ public:
   virtual void heaterControl(bool on)
   {
     if (on) {
-      digitalWrite(13, HIGH);
-      digitalWrite(6, HIGH);
+      digitalWrite(LED_HEAT, HIGH);
+      digitalWrite(HEATER, HIGH);
     }
     else {
-      digitalWrite(13, LOW);
-      digitalWrite(6, LOW);
+      digitalWrite(LED_HEAT, LOW);
+      digitalWrite(HEATER, LOW);
     }
   }
+  
+  virtual void stable(bool stab)
+  {
+    if (stab)
+      digitalWrite(LED_READY, HIGH);
+    else
+      digitalWrite(LED_READY, LOW);
+  }
 };
-
-//
-// TemperatureSetting
-//
-/*
-class TemperatureSetting: public EncoderSwitch
-{
-public:
-  TemperatureSetting(): EncoderSwitch() {
-    temperature = TEMPERATURE_MIN;
-  }
-  
-  virtual void eventUp()
-  {
-    temperature += TEMPERATURE_STEP;
-    if (temperature > TEMPERATURE_MAX)
-      temperature = TEMPERATURE_MAX;
-  }
-
-  virtual void eventDown()
-  {
-    temperature -= TEMPERATURE_STEP;
-    if (temperature < TEMPERATURE_MIN)
-      temperature = TEMPERATURE_MIN;
-  }
-  
-  unsigned int get()
-  {
-    return temperature;
-  }
-  
-protected:
-  unsigned int temperature;
-  
-};
-*/
 
 //
 // Constants
@@ -189,6 +161,8 @@ void setup()
   systemState = SYS_OFF;
   
   updateTime = 0;
+  
+  digitalWrite(LED_READY, HIGH);
     
 }
 

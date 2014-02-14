@@ -107,7 +107,7 @@ void OnOffController::updateSamplingValue(int value)
   
   makeControlDecision();
 
-#ifndef DEBUG_CONTROLLER
+#ifdef DEBUG_CONTROLLER
   Serial.print(now);
   Serial.print('\t');
   Serial.print(value);
@@ -123,9 +123,7 @@ void OnOffController::updateSamplingValue(int value)
   if (m_heaterState)
     Serial.println("on");
   else
-    Serial.println("off");
-    Serial.println(m_stableHigh);
-  
+    Serial.println("off"); 
 #endif
 }
   
@@ -153,6 +151,7 @@ void OnOffController::setOnOffState(bool on)
 	m_currentState = OOCTL_OFF;
         m_faultCode = FAULT_NONE;
 	internalHeaterControl(false);
+        stable(false);
   }
 }
 
@@ -165,21 +164,25 @@ void OnOffController::makeControlDecision()
         return;
   }
   else if ((m_currentState != OOCTL_OFF) && (m_currentState != OOCTL_FAULT)) {
-Serial.println('X');    
     // Decide whether to switch the heater on or off
 	if (m_lastMeasure > (m_stableHigh - m_overshoot)) 
 		internalHeaterControl(false);
     else if (m_lastMeasure < (m_stableLow + m_undershoot)) 
 		internalHeaterControl(true);
 		
-	// Determine the state
-	if (m_lastMeasure < m_stableLow)
-	  m_currentState = OOCTL_UNDER;
-    else if (m_lastMeasure < m_stableHigh)
-	  m_currentState = OOCTL_STABLE;
-	else
+    // Determine the state
+    if (m_lastMeasure < m_stableLow) {
+      m_currentState = OOCTL_UNDER;
+      stable(false);
+    }
+    else if (m_lastMeasure < m_stableHigh) {
+      m_currentState = OOCTL_STABLE;
+      stable(true);
+    }
+    else {
       m_currentState = OOCTL_OVER;
-	
+      stable(false);
+    }	
   }
 }
 
@@ -212,6 +215,9 @@ void OnOffController::switchToFault(int faultCode)
   
   // Set the fault code
   m_faultCode = faultCode;
+  
+  // Notify wer'e not in a stable state
+  stable(false);
   */
 }
 
