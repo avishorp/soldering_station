@@ -9,7 +9,7 @@ int LinearEstimator::estimateY(int x)
 
 int LinearEstimator::estimateX(int y)
 {
-  return (y - a)*B_MULTIPLIER/b;
+  return (long)((long)y - (long)a)*B_MULTIPLIER/b;
 }
 
 
