@@ -36,7 +36,7 @@
 class IronController: public OnOffController
 {
 public:
-  IronController(): OnOffController(0, 700, 0) {}
+  IronController(): OnOffController(0, 1000, 0) {}
   
   virtual void heaterControl(bool on)
   {
@@ -129,7 +129,7 @@ Bounce buttonOnOff;
 Bounce buttonPreset1;
 Bounce buttonPreset2;
 Bounce buttonPreset3;
-EncoderSwitch knobEncoder(KNOB_1, KNOB_2);
+EncoderSwitch knobEncoder(KNOB_1, KNOB_2, true);
 LinearEstimator analogToTempr;
 unsigned int updateTime;
 int subState;
@@ -244,7 +244,9 @@ void loopOn()
       temperatureSetpoint -= TEMPERATURE_STEP;
       
     display.showNumberDec(temperatureSetpoint);
-    controller.setSetpoint(analogToTempr.estimateX(temperatureSetpoint));
+    int sp = analogToTempr.estimateX(temperatureSetpoint);
+    controller.setSetpoint(sp);
+    Serial.println(sp);
   }
       
         
@@ -283,8 +285,6 @@ void loop()
   updateReport.btn3Value = !buttonPreset1.read();
   updateReport.knobValue = knobEncoder.update();
   
-  if (updateReport.knobValue != 0)
-    Serial.println(updateReport.knobValue);
   
    
   switch(systemState) {

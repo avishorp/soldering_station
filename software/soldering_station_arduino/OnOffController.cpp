@@ -16,7 +16,7 @@ const char* _controllerStateStr[] = {
   "FAULT"
 };
 
-const char* controllerStateToStr(ControllerState st)
+const char* OnOffController::controllerStateToStr(ControllerState st)
 {
   switch(st) {
   case OOCTL_OFF:
@@ -67,6 +67,8 @@ void OnOffController::setSetpoint(int value)
   int margin = 20;
   m_stableLow = value - margin;
   m_stableHigh = value + margin;
+  m_overshoot = 0;
+  m_undershoot = 0;
   
   // Temporarily disable over/undershoot measurment to prevent
   // false results due to the setpoint change
@@ -104,6 +106,27 @@ void OnOffController::updateSamplingValue(int value)
   }
   
   makeControlDecision();
+
+#ifndef DEBUG_CONTROLLER
+  Serial.print(now);
+  Serial.print('\t');
+  Serial.print(value);
+  Serial.print('\t');
+  Serial.print(m_setpoint);
+  Serial.print('\t');
+  Serial.print(m_overshoot);
+  Serial.print('\t');
+  Serial.print(m_undershoot);
+  Serial.print('\t');
+  Serial.print(controllerStateToStr(m_currentState));
+  Serial.print('\t');
+  if (m_heaterState)
+    Serial.println("on");
+  else
+    Serial.println("off");
+    Serial.println(m_stableHigh);
+  
+#endif
 }
   
 bool OnOffController::isHeaterOn()
@@ -142,6 +165,7 @@ void OnOffController::makeControlDecision()
         return;
   }
   else if ((m_currentState != OOCTL_OFF) && (m_currentState != OOCTL_FAULT)) {
+Serial.println('X');    
     // Decide whether to switch the heater on or off
 	if (m_lastMeasure > (m_stableHigh - m_overshoot)) 
 		internalHeaterControl(false);
@@ -154,7 +178,7 @@ void OnOffController::makeControlDecision()
     else if (m_lastMeasure < m_stableHigh)
 	  m_currentState = OOCTL_STABLE;
 	else
-      m_currentState = OOCTL_UNDER;
+      m_currentState = OOCTL_OVER;
 	
   }
 }
@@ -177,6 +201,7 @@ void OnOffController::internalHeaterControl(bool on)
 
 void OnOffController::switchToFault(int faultCode)
 {
+  /*
   // First of all, turn heater off (directly, without
   // going through the over/undershoot stuff)
   heaterControl(false);
@@ -187,6 +212,7 @@ void OnOffController::switchToFault(int faultCode)
   
   // Set the fault code
   m_faultCode = faultCode;
+  */
 }
 
 

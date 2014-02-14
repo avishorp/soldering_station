@@ -12,7 +12,6 @@ typedef enum {
   OOCTL_FAULT      // Fault
 } ControllerState;
 
-const char* controllerStateToStr(ControllerState st);
 
 // Controller Fault Conditions
 #define FAULT_NONE         0
@@ -89,6 +88,10 @@ protected:
   
   // Wrapper to the heaterControl method
   void internalHeaterControl(bool on);
+
+  // Convert the state to string (for debugging)  
+  const char* controllerStateToStr(ControllerState st);
+
   
   unsigned int m_lastMeasure;
   unsigned int m_prevMeasure;
