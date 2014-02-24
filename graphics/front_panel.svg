@@ -25,8 +25,8 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="1.8101934"
-     inkscape:cx="30.719977"
-     inkscape:cy="191.32583"
+     inkscape:cx="176.6384"
+     inkscape:cy="243.32806"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
@@ -49,6 +49,10 @@
        orientation="0,1"
        position="425,79.6875"
        id="guide3032" />
+    <sodipodi:guide
+       orientation="0,1"
+       position="-160.20388,277.87086"
+       id="guide3029" />
   </sodipodi:namedview>
   <metadata
      id="metadata7">
@@ -58,7 +62,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -174,15 +178,15 @@
     <text
        xml:space="preserve"
        style="font-size:56px;font-style:normal;font-weight:normal;text-align:end;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:end;fill:#000000;fill-opacity:1;stroke:none;font-family:Times New Roman;-inkscape-font-specification:Times New Roman"
-       x="485.71146"
+       x="448.60208"
        y="931.81958"
        id="text3889"
        sodipodi:linespacing="125%"><tspan
          sodipodi:role="line"
          id="tspan3891"
-         x="485.71146"
+         x="448.60208"
          y="931.81958"
-         style="font-size:18px;font-weight:bold;font-family:arial;-inkscape-font-specification:arial">TEMPERATURE</tspan></text>
+         style="font-size:18px;font-weight:bold;font-family:arial;-inkscape-font-specification:arial">TEMP.</tspan></text>
     <text
        sodipodi:linespacing="125%"
        id="text3897"
@@ -213,16 +217,6 @@
        height="47.313068"
        x="368.45041"
        y="948.90247" />
-    <path
-       sodipodi:type="arc"
-       style="opacity:0.54867255;fill:none;stroke:#000000;stroke-width:1.54578924;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
-       id="path3034"
-       sodipodi:cx="216.40625"
-       sodipodi:cy="817.98718"
-       sodipodi:rx="41.40625"
-       sodipodi:ry="41.40625"
-       d="m 257.8125,817.98718 a 41.40625,41.40625 0 1 1 -82.8125,0 41.40625,41.40625 0 1 1 82.8125,0 z"
-       transform="matrix(0.64691873,0,0,0.64691873,-84.560395,443.50345)" />
     <path
        sodipodi:type="arc"
        style="opacity:0.54867255;fill:none;stroke:#000000;stroke-width:3.33864975;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
@@ -271,12 +265,18 @@
        id="path3895"
        style="opacity:0.54867255;fill:none;stroke:#000000;stroke-width:4.80000019;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
        sodipodi:type="arc" />
+    <path
+       style="display:inline;opacity:0.54867255000000004;fill:none;stroke:#000000;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1"
+       d="m 82.843944,972.67468 c 0,-14.79377 -11.98749,-26.78125 -26.781248,-26.78125 -14.79377,0 -26.78125,11.98748 -26.78125,26.78125 0,13.86915 9.96931,25.2723 23.47656,26.64404 l 0.0288,0.0366 -0.0366,3.66308 6.5,0 0,-3.68749 0.0386,-0.0488 c 13.507197,-1.37175 23.555138,-12.73828 23.555138,-26.60743 z"
+       id="path3026"
+       inkscape:connector-curvature="0"
+       sodipodi:nodetypes="sssccccccs" />
   </g>
   <g
      inkscape:groupmode="layer"
      id="layer4"
      inkscape:label="support"
-     style="display:none">
+     style="display:inline">
     <rect
        style="opacity:0.54867255;fill:none;stroke:#000000;stroke-width:1.06098735;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;display:inline"
        id="rect3826"
