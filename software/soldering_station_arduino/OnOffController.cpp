@@ -53,8 +53,9 @@ OnOffController::OnOffController(unsigned int lowMargin, unsigned int maxValidVa
   m_faultCode = FAULT_NONE;
   
   // Turn the heater off
-  
   internalHeaterControl(false);
+  
+  stable(false);
 }
   
 void OnOffController::setSetpoint(int value)
