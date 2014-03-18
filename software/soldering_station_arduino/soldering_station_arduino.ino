@@ -7,18 +7,18 @@
 #include "LinearEstimator.h"
 
 // Pin Allocation
-#define HEATER       6     // Heater control (on/off)
-#define TSENSE       A0    // Temperature sense, analog input
-#define DISP_CLK   2    // Display module clock
-#define DISP_DIO   3    // Display module data
-#define BTN_ONOFF 4   // On/Off Button
-#define BTN_PRST1  A1   // Preset 1 Button
-#define BTN_PRST2  A2   // Preset 2 Button
-#define BTN_PRST3  A3   // Preset 3 Button
-#define LED_HEAT   11  // Heater on indicator
-#define LED_READY 12   // Ready LED
-#define KNOB_1         9      // Setting knob input 1
-#define KNOB_2         10      // Setting knob input 2
+#define HEATER         6  // Heater control (on/off)
+#define TSENSE         A0 // Temperature sense, analog input
+#define DISP_CLK       2  // Display module clockw
+#define DISP_DIO       3  // Display module data
+#define BTN_ONOFF      9  // On/Off Button
+#define BTN_PRST1      10 // Preset 1 Button
+#define BTN_PRST2      7  // Preset 2 Button
+#define BTN_PRST3      8  // Preset 3 Button
+#define LED_HEAT       11 // Heater on indicator
+#define LED_READY      12 // Ready LED
+#define KNOB_1         5  // Setting knob input 1
+#define KNOB_2         4  // Setting knob input 2
 
 // General Settings
 #define TEMPERATURE_MIN     150  // Min Setpoint Temperature
@@ -28,7 +28,9 @@
                                  // considered hot (and unsafe)
 #define TEMPERATURE_FAULT   500  // The temperature above which a fault condition
                                  // is considered
-#define UPDATE_INTERVAL     100  // Controller update interval (in mS)                              
+#define UPDATE_INTERVAL     100  // Controller update interval (in mS)    
+#define PRESET_TIME        4000  // The button push time (in mS) required to set 
+                                 // a preset
 
 //
 // IronController
@@ -67,6 +69,11 @@ const uint8_t DISP_HOT[]  = {                    // hOt
   SEG_F | SEG_E | SEG_G | SEG_C,                 // h
   SEG_A | SEG_B | SEG_C | SEG_D | SEG_E | SEG_F, // O
   SEG_F | SEG_E | SEG_G | SEG_D };               // t
+const uint8_t DISP_PRESET[] = {
+  SEG_A | SEG_B | SEG_E | SEG_F | SEG_G,
+  0, 0, 0 };
+const uint8_t DISP_ALL_ON[] = {0xff, 0xff, 0xff, 0xff};
+
 //
 // Types
 //
@@ -81,12 +88,8 @@ typedef struct {
   bool temperatureUpdate;
   bool btnOnOffChanged;
   bool btnOnOffValue;
-  bool btn1Changed;
-  bool btn1Value;
-  bool btn2Changed;
-  bool btn2Value;
-  bool btn3Changed;
-  bool btn3Value;
+  bool btnChanged[3];
+  bool btnValue[3];
   int  knobValue;
 } UpdateReport;
 
@@ -107,6 +110,18 @@ unsigned int updateTime;
 int subState;
 UpdateReport updateReport;
 int temperatureSetpoint;
+int presetTemperature[3];
+int btnPushIndex;
+unsigned int btnPushTime;
+bool btnPushPresetElapsed;
+
+void self_test()
+{
+  display.setSegments(DISP_ALL_ON);
+  digitalWrite(LED_READY, HIGH);
+  digitalWrite(LED_HEAT, HIGH);
+  delay(2000);
+}
 
 void setup()
 {
@@ -156,6 +171,9 @@ void setup()
   analogToTempr.linest(4, xx, yy);
   
   temperatureSetpoint = 250; // TODO: Read from EEPROM
+  presetTemperature[0] = 280;
+  presetTemperature[1] = 320;
+  presetTemperature[2] = 355;
   
   // Initial system state
   systemState = SYS_OFF;
@@ -163,6 +181,11 @@ void setup()
   updateTime = 0;
   
   digitalWrite(LED_READY, HIGH);
+  
+  self_test();
+  
+  // Initially, the unit is off
+  switchToOff();
     
 }
 
@@ -171,6 +194,8 @@ void switchToOff()
   systemState = SYS_OFF;
   controller.setOnOffState(false);   
   subState = 0;
+  btnPushIndex = -1;
+  btnPushPresetElapsed = false;
 }
 
 void switchToOn()
@@ -203,6 +228,9 @@ void loopOff()
 
 void loopOn()
 {
+  bool tempChanged = false;
+  int i;
+  
   // Update and the the On/Off button state
   if (updateReport.btnOnOffChanged && updateReport.btnOnOffValue) {
       // On/Off button pressed, change to OFF state
@@ -210,17 +238,56 @@ void loopOn()
       return;
   }  
   
-  // Update the temperature
+  // Process knob changes
   if (updateReport.knobValue != 0) {
     if ((updateReport.knobValue == 1) && (temperatureSetpoint < TEMPERATURE_MAX))
       temperatureSetpoint += TEMPERATURE_STEP;
     else if ((updateReport.knobValue == -1) && (temperatureSetpoint > TEMPERATURE_MIN))
       temperatureSetpoint -= TEMPERATURE_STEP;
       
+    tempChanged = true;
+  }
+  
+  // Preset buttons
+  if ((btnPushIndex >= 0) && (millis() > btnPushTime)) {
+    // Preset button was pushed long enough to set the preset
+    btnPushPresetElapsed = true;
+    display.setSegments(DISP_PRESET);
+  }
+        
+  for(i=0; i < 3; i++) {
+    if (updateReport.btnChanged[i]) {
+      // Button i has changed
+     
+      if (updateReport.btnValue[i]) {
+        // Button pushed - record this fact and set the timer
+        btnPushIndex = i;
+        btnPushTime = millis() + PRESET_TIME;
+      }
+      else {
+        // Button released
+        if (btnPushPresetElapsed) {
+          // Released after a long push - set the preset temperature
+          presetTemperature[btnPushIndex] = temperatureSetpoint;
+          display.showNumberDec(temperatureSetpoint);
+          btnPushPresetElapsed = false;
+          btnPushIndex = -1;
+        }
+        else {
+          // Released after short push - set the setpoint to the preset value
+          temperatureSetpoint = presetTemperature[i];
+          tempChanged = true;
+        }
+      }
+    }
+  }
+  
+  // Update temperature if necessary
+  if (tempChanged) {
     display.showNumberDec(temperatureSetpoint);
     int sp = analogToTempr.estimateX(temperatureSetpoint);
-    controller.setSetpoint(sp);
-    Serial.println(sp);
+    controller.setSetpoint(sp); 
+    btnPushIndex = -1;
   }
       
         
@@ -251,15 +318,13 @@ void loop()
   // Update the various debouncers
   updateReport.btnOnOffChanged = buttonOnOff.update();
   updateReport.btnOnOffValue = !buttonOnOff.read();
-  updateReport.btn1Changed = buttonPreset1.update();
-  updateReport.btn1Value = !buttonPreset1.read();
-  updateReport.btn2Changed = buttonPreset2.update();  
-  updateReport.btn2Value = !buttonPreset1.read();
-  updateReport.btn3Changed = buttonPreset3.update();  
-  updateReport.btn3Value = !buttonPreset1.read();
+  updateReport.btnChanged[0] = buttonPreset1.update();
+  updateReport.btnValue[0] = !buttonPreset1.read();
+  updateReport.btnChanged[1] = buttonPreset2.update();  
+  updateReport.btnValue[1] = !buttonPreset2.read();
+  updateReport.btnChanged[2] = buttonPreset3.update();  
+  updateReport.btnValue[2] = !buttonPreset3.read();
   updateReport.knobValue = knobEncoder.update();
-  
-  
    
   switch(systemState) {
   case SYS_ON:
