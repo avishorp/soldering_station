@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <TM1637Display.h>
 #include <Bounce2.h>
+#include <EEPROM.h>
 #include "OnOffController.h"
 #include "Average.h"
 #include "EncoderSwitch.h"
@@ -22,7 +23,7 @@
 
 // General Settings
 #define TEMPERATURE_MIN     150  // Min Setpoint Temperature
-#define TEMPERATURE_MAX     400  // Max Setpoint Temperature
+#define TEMPERATURE_MAX     420  // Max Setpoint Temperature
 #define TEMPERATURE_STEP    5    // Adjustment step
 #define TEMPERATURE_HOT     40   // The temperature below which the iron is
                                  // considered hot (and unsafe)
@@ -31,6 +32,15 @@
 #define UPDATE_INTERVAL     100  // Controller update interval (in mS)    
 #define PRESET_TIME        4000  // The button push time (in mS) required to set 
                                  // a preset
+#define CAL_TIME           20000 // The time the "CAL" display is shown (counter cycles,
+                                 // no specific units)
+
+// Fault codes
+#define FAULT_CALIBRATION    1   // No calibtartion data
+
+// Calibration points
+const uint16_t CAL_POINTS[] = { 650, 750, 850, 950 };
+const uint8_t N_CAL_POINTS = sizeof(CAL_POINTS)/sizeof(uint16_t);
 
 //
 // IronController
@@ -68,10 +78,29 @@ const uint8_t DISP_BLANK[] = {0, 0, 0, 0};       // Blank display
 const uint8_t DISP_HOT[]  = {                    // hOt
   SEG_F | SEG_E | SEG_G | SEG_C,                 // h
   SEG_A | SEG_B | SEG_C | SEG_D | SEG_E | SEG_F, // O
-  SEG_F | SEG_E | SEG_G | SEG_D };               // t
+  SEG_F | SEG_E | SEG_G | SEG_D,
+  0 };               // t
 const uint8_t DISP_PRESET[] = {
   SEG_A | SEG_B | SEG_E | SEG_F | SEG_G,
   0, 0, 0 };
+const uint8_t DISP_CAL[] = {
+   SEG_A | SEG_D | SEG_E | SEG_F,                 // C
+   SEG_A | SEG_B | SEG_C | SEG_E | SEG_F | SEG_G, // A
+   SEG_D | SEG_E | SEG_F,                         // L
+   0};
+const uint8_t DISP_DONE[] = {
+   SEG_B | SEG_C | SEG_D | SEG_E | SEG_G,         // d
+   SEG_A | SEG_B | SEG_C | SEG_D | SEG_E | SEG_F, // O
+   SEG_C | SEG_E | SEG_G,                         // n
+   SEG_A | SEG_D | SEG_E | SEG_F | SEG_G          // E
+   };   
+const uint8_t DISP_FAULT[] = {
+   0,                                             // (blank)
+   SEG_A | SEG_E | SEG_F | SEG_G,                 // F
+   0,                                             // (blank)
+   0                                              // (blank)
+   };
+
 const uint8_t DISP_ALL_ON[] = {0xff, 0xff, 0xff, 0xff};
 
 //
@@ -80,7 +109,8 @@ const uint8_t DISP_ALL_ON[] = {0xff, 0xff, 0xff, 0xff};
 typedef enum {
   SYS_OFF,
   SYS_ON,
-  SYS_CAL
+  SYS_CAL,
+  SYS_FAULT
 } SystemState;
 
 typedef struct {
@@ -92,6 +122,23 @@ typedef struct {
   bool btnValue[3];
   int  knobValue;
 } UpdateReport;
+
+typedef struct {
+  bool calValid;
+  uint16_t calTemperatures[N_CAL_POINTS];
+  uint16_t presetTemperature[3];
+} SettingsType;
+
+typedef struct {
+  SettingsType data;
+  uint16_t checksum;
+} PersistentSettingsType;
+
+const SettingsType defaultSettings = {
+  0,               // calValid
+  { 0, 0, 0, 0 },  // calTemperatures
+  {280, 320, 350 } // presetTemperatures
+};
 
 //
 // Global Variables
@@ -110,11 +157,15 @@ unsigned int updateTime;
 int subState;
 UpdateReport updateReport;
 int temperatureSetpoint;
-int presetTemperature[3];
 int btnPushIndex;
 unsigned int btnPushTime;
 bool btnPushPresetElapsed;
+uint8_t calIndex;
+uint16_t calTemp;
+PersistentSettingsType settings;
 
+
+// Simple self test - turn all all the LEDs and segments for 2 seconds
 void self_test()
 {
   display.setSegments(DISP_ALL_ON);
@@ -123,9 +174,68 @@ void self_test()
   delay(2000);
 }
 
+uint16_t calcSettingsChecksum()
+{
+  // Calculates and returns the checksum of the settings
+  uint8_t i;
+  uint16_t cs = 0;
+  uint8_t* data = (uint8_t*)(&settings.data);
+  for(i=0; i < sizeof(SettingsType); i++) {
+    cs += *data;
+    cs <<= 1;
+    data++;
+  }
+  
+  return cs;
+}
+
+
+// Read the settings stored in the EEPROM. If no settings are stored,
+// revert to the default
+void readSettings()
+{
+  // Read the data from the EEPROM
+  uint8_t i;
+  uint8_t* data = (uint8_t*)&settings;
+  for(i=0; i < sizeof(settings); i++) {
+    *data = EEPROM.read(i);
+    data++;
+  }
+    
+  // Calculate the checksum and compare to the read value
+  if (calcSettingsChecksum() != settings.checksum) {
+    Serial.println("Invalid!");
+    // Invalid data - copy the default values
+    data = (uint8_t*)&settings;
+    uint8_t* def = (uint8_t*)&defaultSettings;
+    
+    for(i=0; i < sizeof(settings); i++) {
+      *data = *def;
+      data++;
+      def++;
+    }
+
+  }
+}
+
+// Store the settings in the EEPROM
+void storeSettings()
+{
+  // Calculate the checksum
+  settings.checksum = calcSettingsChecksum();
+  
+  // Write the data to the EEPROM
+  uint8_t i;
+  uint8_t* data = (uint8_t*)&settings;
+  for(i=0; i < sizeof(settings); i++) {
+    EEPROM.write(i, *data);
+    data++;
+  }
+}
+
 void setup()
 {
-  Serial.begin(9600);
+  Serial.begin(115200);
 
   // Set up the I/O pin direction
   pinMode(HEATER, OUTPUT);
@@ -166,14 +276,11 @@ void setup()
   buttonPreset3.attach(BTN_PRST3);
   buttonPreset3.interval(5);  
   
-  int xx[] = {550, 650, 750, 850};
-  int yy[] = {167, 232, 295, 360};
-  analogToTempr.linest(4, xx, yy);
+  readSettings();
+
+  analogToTempr.linest(N_CAL_POINTS, (int*)&CAL_POINTS, (int*)&settings.data.calTemperatures);
   
   temperatureSetpoint = 250; // TODO: Read from EEPROM
-  presetTemperature[0] = 280;
-  presetTemperature[1] = 320;
-  presetTemperature[2] = 355;
   
   // Initial system state
   systemState = SYS_OFF;
@@ -183,9 +290,9 @@ void setup()
   digitalWrite(LED_READY, HIGH);
   
   self_test();
-  
+    
   // Initially, the unit is off
-  switchToOff();
+  switchToOff();  
     
 }
 
@@ -198,18 +305,51 @@ void switchToOff()
   btnPushPresetElapsed = false;
 }
 
+void switchToFault(uint8_t code)
+{
+  systemState = SYS_FAULT;
+  controller.setOnOffState(false);
+  display.setSegments(DISP_FAULT);
+  display.showNumberDec(code, false, 1, 2);
+}
+
 void switchToOn()
 {
-  systemState = SYS_ON;
-  controller.setOnOffState(true);
-  subState = 0;
-  display.showNumberDec(temperatureSetpoint);
+  // Check if the unit is calibrated
+  if (!(settings.data.calValid)) {
+    // Not calibrated - fault
+    switchToFault(FAULT_CALIBRATION);
+  }
+  else {
+    systemState = SYS_ON;
+    controller.setOnOffState(true);
+    subState = 0;
+    display.showNumberDec(temperatureSetpoint);
+  }
 }
+
+void switchToCal()
+{
+  systemState = SYS_CAL;
+  controller.setOnOffState(false);
+  subState = 0;
+  display.setSegments(DISP_CAL);
+  btnPushTime = 0; // Variable reuse
+  calIndex = 0;
+}
+
+
 
 void loopOff()
 {
   if (updateReport.btnOnOffChanged && updateReport.btnOnOffValue) {
-    switchToOn();
+    // On/Off button was pressed. If PRESET3 button is also pressed,
+    // we switch to calibtation mode
+      if (updateReport.btnValue[2] == 1)
+        switchToCal();
+      else
+        switchToOn();
+        
     return;
   }
 
@@ -268,14 +408,15 @@ void loopOn()
         // Button released
         if (btnPushPresetElapsed) {
           // Released after a long push - set the preset temperature
-          presetTemperature[btnPushIndex] = temperatureSetpoint;
+          settings.data.presetTemperature[btnPushIndex] = temperatureSetpoint;
+          storeSettings();
           display.showNumberDec(temperatureSetpoint);
           btnPushPresetElapsed = false;
           btnPushIndex = -1;
         }
         else {
           // Released after short push - set the setpoint to the preset value
-          temperatureSetpoint = presetTemperature[i];
+          temperatureSetpoint = settings.data.presetTemperature[i];
           tempChanged = true;
         }
       }
@@ -294,8 +435,114 @@ void loopOn()
  
 }
 
-void loopCal(int temperature, bool update)
+void loopCal()
 {
+ 
+  // At any stage, if the On/Off button is pressed,
+  // the calibration process is aborted and the system
+  // turns off
+  if (updateReport.btnOnOffChanged && updateReport.btnOnOffValue) {
+    switchToOff();
+    return;
+  }
+
+  switch(subState) {
+  case 0:
+    btnPushTime++;
+    
+    // Display "CAL" for several seconds
+    if (btnPushTime > CAL_TIME) {
+      subState++;
+      btnPushTime = 0; // Reuse as calibration point
+      display.setSegments(DISP_BLANK);
+      calTemp = 1000;
+    }
+    break;
+
+
+  case 1:
+    // Set temperature phase
+    controller.setOnOffState(true);
+    controller.setSetpoint(CAL_POINTS[calIndex]);
+    display.setSegments(DISP_BLANK);
+    display.showNumberDec(calIndex+1, false, 1, 0);
+    subState = 2;
+    break;
+    
+  case 2:
+    // Heatup phase - wait until the temperature stabilizes
+    if (controller.isStable()) {
+      display.showNumberDec(calTemp);
+      subState = 3;
+    }
+    break;
+    
+  case 3:
+    // User input phase
+    ///////////////////
+    
+    // Let the user change the temperature reading
+    if (updateReport.knobValue != 0) {
+      if ((updateReport.knobValue == 1) && (calTemp < TEMPERATURE_MAX)) {
+        calTemp += TEMPERATURE_STEP;
+        display.showNumberDec(calTemp);
+      }
+      else if ((updateReport.knobValue == -1) && (calTemp > 100)) {
+        calTemp -= TEMPERATURE_STEP;
+        display.showNumberDec(calTemp);
+      }
+    }
+    
+    // When done, the user should press the "Preset 3" button
+    if ((updateReport.btnChanged[2] == 1) && (updateReport.btnValue[2] == 1)) {
+      // Store the user input
+      settings.data.calTemperatures[calIndex] = calTemp;
+      
+      if (calIndex == (N_CAL_POINTS-1)) {
+        // Calibration done
+        subState = 4;
+      }
+      else {
+        // Next calibration point
+        calIndex++;
+        subState = 1;
+      }
+    }
+    break;
+    
+  case 4:
+    // Store Phase
+    //////////////
+
+    // Turn off the heating
+    controller.setOnOffState(false  );
+    
+    // Display "DONE"
+    display.setSegments(DISP_DONE);
+    
+    // Store the calibration data in the EEPROM
+    settings.data.calValid = true;
+    storeSettings();
+    
+    // Swith to the final state
+    subState = 5;
+    break;
+    
+  case 5:
+    // End-of-process Phase
+    ///////////////////////
+    // Wait until user turns the unit off
+    break;
+  }
+    
+}
+
+void loopFault()
+{
+ 
+  // Wait until the unit is turned off
+  if (updateReport.btnOnOffChanged && updateReport.btnOnOffValue) 
+    switchToOff();
 }
 
 void loop()
@@ -313,6 +560,17 @@ void loop()
     updateReport.temperature = temperature;
     updateReport.temperatureUpdate = true;
     controller.updateSamplingValue(meas);
+    
+/*
+    // Report
+    Serial.print(meas);
+    Serial.print('\t');
+    Serial.print(temperature);
+    Serial.print('\t');
+    Serial.print(controller.isHeaterOn());
+    Serial.print('\t');
+    Serial.println(controller.getSetpoint());
+*/
   } 
   
   // Update the various debouncers
@@ -333,6 +591,14 @@ void loop()
     
   case SYS_OFF:
     loopOff();
+    break;
+	
+  case SYS_CAL:
+    loopCal();
+    break;
+
+  case SYS_FAULT:
+    loopFault();
     break;
   };
 }

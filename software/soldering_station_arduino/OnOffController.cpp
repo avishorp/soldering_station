@@ -77,6 +77,11 @@ void OnOffController::setSetpoint(int value)
   
   makeControlDecision();
 }
+
+int OnOffController::getSetpoint() const
+{
+  return m_setpoint;
+}
   
 void OnOffController::updateSamplingValue(int value)
 {
@@ -128,11 +133,12 @@ void OnOffController::updateSamplingValue(int value)
 #endif
 }
   
-bool OnOffController::isHeaterOn()
+bool OnOffController::isHeaterOn() const
 {
+  return m_heaterState;
 }
   
-ControllerState OnOffController::getState()
+ControllerState OnOffController::getState() const
 {
   return m_currentState;
 }

@@ -1,4 +1,5 @@
 
+
 #ifndef _ONOFFCONTROLLER_H_
 #define _ONOFFCONTROLLER_H_
 
@@ -54,14 +55,17 @@ public:
   // Set the desired temperature setpoint
   void setSetpoint(int value);
   
+  // Gets the setpoint value
+  int getSetpoint() const;
+  
   // Update the controller with a new sensor data value
   void updateSamplingValue(int value);
   
   // Check whether the heater is turned on
-  bool isHeaterOn();
+  bool isHeaterOn() const;
   
   // Get the current state of the controller
-  ControllerState getState();
+  ControllerState getState() const;
   
   // Turn the power on (controller workign) or off (heater always off)
   void setOnOffState(bool on);
@@ -81,6 +85,9 @@ public:
   // Fault callback - will be called by the controller in case
   // of a fault condition
   virtual void fault(int faultCode) {}
+
+  bool isStable() const 
+    { return (getState() ==  OOCTL_STABLE); }
   
 protected: 
   // Calculate the current state and decide
@@ -95,6 +102,7 @@ protected:
 
   // Convert the state to string (for debugging)  
   const char* controllerStateToStr(ControllerState st);
+  
 
   
   unsigned int m_lastMeasure;
