@@ -113,7 +113,7 @@ void OnOffController::updateSamplingValue(int value)
   
   makeControlDecision();
 
-#ifdef DEBUG_CONTROLLER
+#ifndef DEBUG_CONTROLLER
   Serial.print(now);
   Serial.print('\t');
   Serial.print(value);
@@ -172,9 +172,9 @@ void OnOffController::makeControlDecision()
   }
   else if ((m_currentState != OOCTL_OFF) && (m_currentState != OOCTL_FAULT)) {
     // Decide whether to switch the heater on or off
-	if (m_lastMeasure > (m_stableHigh - m_overshoot)) 
+	if (m_lastMeasure > m_setpoint) 
 		internalHeaterControl(false);
-    else if (m_lastMeasure < (m_stableLow + m_undershoot)) 
+    else if (m_lastMeasure < m_setpoint) 
 		internalHeaterControl(true);
 		
     // Determine the state
