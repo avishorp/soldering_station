@@ -16,8 +16,8 @@
 #define BTN_PRST1      10 // Preset 1 Button
 #define BTN_PRST2      7  // Preset 2 Button
 #define BTN_PRST3      8  // Preset 3 Button
-#define LED_HEAT       11 // Heater on indicator
-#define LED_READY      12 // Ready LED
+#define LED_HEAT       12 // Heater on indicator
+#define LED_READY      11 // Ready LED
 #define KNOB_1         5  // Setting knob input 1
 #define KNOB_2         4  // Setting knob input 2
 
