@@ -34,6 +34,8 @@
                                  // a preset
 #define CAL_TIME           20000 // The time the "CAL" display is shown (counter cycles,
                                  // no specific units)
+#define BRIGHTNESS_ON      15    // Display brightness (ON state)
+#define BRIGHTNESS_OFF     8     // Display brightness (OFF state)
 
 // Fault codes
 #define FAULT_CALIBRATION    1   // No calibtartion data
@@ -101,6 +103,12 @@ const uint8_t DISP_FAULT[] = {
    0                                              // (blank)
    };
 
+const uint8_t DISP_OFF[] = {
+   SEG_A | SEG_B | SEG_C | SEG_D | SEG_E | SEG_F, // O
+   SEG_A | SEG_E | SEG_F | SEG_G,                 // F
+   SEG_A | SEG_E | SEG_F | SEG_G,                 // F
+   0                                              // (blank)
+   };
 const uint8_t DISP_ALL_ON[] = {0xff, 0xff, 0xff, 0xff};
 
 //
@@ -251,7 +259,7 @@ void setup()
   
   readingAvg.init(analogRead(A0));
   
-  display.setBrightness(15);
+  display.setBrightness(BRIGHTNESS_ON);
   
   controller.setSetpoint(550);
   
@@ -324,6 +332,7 @@ void switchToOn()
     systemState = SYS_ON;
     controller.setOnOffState(true);
     subState = 0;
+    display.setBrightness(BRIGHTNESS_ON);
     display.showNumberDec(temperatureSetpoint);
   }
 }
@@ -356,10 +365,13 @@ void loopOff()
   if (updateReport.temperatureUpdate && (subState == 0)) {  
     // Check if the iron handle is too hot, and display "HOT" if
     // so. Otherwise display nothing
-    if ((updateReport.temperature > TEMPERATURE_HOT) && (updateReport.temperature < TEMPERATURE_FAULT))
+    if ((updateReport.temperature > TEMPERATURE_HOT) && (updateReport.temperature < TEMPERATURE_FAULT)) {
+      display.setBrightness(BRIGHTNESS_ON);
       display.setSegments(DISP_HOT);
+    }
     else {
-      display.setSegments(DISP_BLANK);
+      display.setBrightness(BRIGHTNESS_OFF);
+      display.setSegments(DISP_OFF);
       subState = 1;
     }
   }
